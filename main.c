@@ -74,9 +74,9 @@ void pwm_set (char input_number){
 	switch (input_number)
 	{
 		case 1:{
-			motor.motorL1=1; //i wrote random values here but once we figure out the needed velocity, we'll insert a pwm value needed to get that.
-			motor.motorL2=2;
-			motor.motorL3=2;
+			motor.motorL1=1; //i wrote random values here but once we figure out what pwm values to set here, ill change it
+			motor.motorL2=2; //it will most likely change so that it just sets to max, until it reaches the desired angle
+			motor.motorL3=2; //so that when the adafruit accelerometer sends the right output, we change to the next pwm or stop.
 			motor.motorR1=2;
 			motor.motorR2=2;
 			motor.motorR3=2;
