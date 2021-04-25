@@ -52,7 +52,7 @@ int main(void)
 		} while (stage_number<32); //stage number smaller than number of stages at normal brachiation
 				
 		// loop for bars 6-8. ->Sprinting motion
-		
+		//!!needs improvement!!
 		// 1. set pwm for first motor, to leave start position.
 		// 2. After set speed and angle has been achieved, initiate movement for first motor, to grab next bar.
 		// 3. When Optocoupler sends positive signal, release second motor from previous bar, grab next bar.
