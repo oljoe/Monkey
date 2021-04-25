@@ -7,9 +7,9 @@
 #define BAUD_PRESCALER ((F_CPU/(BAUDRATE*16UL))-1)
 
 //function prototypes
-void pwm_set (char); //sets motor pwm.
+void pwm_set (uint8_t); //sets motor pwm.
 char optocoupler_check (void); //checks if optocoupler signal is 1 or 0. (might need to be an interrupt instead of function).
-char check_values (char); //checks angle, velocity, etc. If needed values are achieved, the device starts grabbing bar.
+char check_values (uint8_t); //checks angle, velocity, etc. If needed values are achieved, the device starts grabbing bar.
 
 typedef struct 
 {
@@ -26,7 +26,7 @@ pwm motor;
 
 int main(void)
 {
-	char stage_number=1; //which stage device is currently on. Used to determine what pwm speed to set.
+	uint8_t stage_number=1; //which stage device is currently on. Used to determine what pwm speed to set.
 	
 	//initialize all ports, enable pullups, in/out etc.
 	
@@ -93,6 +93,6 @@ void pwm_set (char input_number){
 
 char check_values (char input_number){
 	char agree=0;
-	 
+	 //code that checks the input values
 	 return agree;
 }
