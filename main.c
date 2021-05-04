@@ -1,24 +1,32 @@
 #define F_CPU 16000000UL
+#define STAGEAMOUNT 32
 #include <stdio.h>
 #include <avr/io.h>
 #include <util/delay.h>
+#include <avr/eeprom.h>
 #include <avr/interrupt.h>
+#include "usart.h"
 #define BAUDRATE 57600
 #define BAUD_PRESCALER ((F_CPU/(BAUDRATE*16UL))-1)
 
+volatile unsigned int ms_counter;
+float elapsedtime=0;
+
 //function prototypes
 void pwm_set (uint8_t); //sets motor pwm.
-char optocoupler_check (void); //checks if optocoupler signal is 1 or 0. (might need to be an interrupt instead of function).
-char check_values (uint8_t); //checks angle, velocity, etc. If needed values are achieved, the device starts grabbing bar.
+uint8_t optocoupler_check (void); //checks if optocoupler signal is 1 or 0. (might need to be an interrupt instead of function).
+char check_values (char); //checks angle, velocity, etc. If needed values are achieved, the device starts grabbing bar.
+void init_interrupt();
+
 
 typedef struct 
 {
-	int motorR1;
-	int motorR2;
-	int motorR3;
-	int motorL1;
-	int motorL2;
-	int motorL3;
+	uint8_t motorR1;
+	uint8_t motorR2;
+	uint8_t motorR3;
+	uint8_t motorL1;
+	uint8_t motorL2;
+	uint8_t motorL3;
 } pwm;
 
 pwm motor;
@@ -26,50 +34,56 @@ pwm motor;
 
 int main(void)
 {
+	char finish=1; //when finish =0, program stops.
 	uint8_t stage_number=1; //which stage device is currently on. Used to determine what pwm speed to set.
 	
-	//initialize all ports, enable pullups, in/out etc.
-	
-	//configure interrupts 
-	UCSR0B|=(1<<RXCIE0); //enable interrupts for RXIE
-	sei(); //enable global interrupts
-	
-	//program loops
-	
-		// loop for bars 1-5. ->Normal brachiation
-		// 1. set pwm for first and second motor, to leave start position.
-		// 2. After set speed and angle has been achieved, initiate movement for first motor, to grab next bar.
-		// 3. Confirm if grabbed -> check velocity, angle, optocoupler signal
-		// 4. If state confirmed, change variables to achieve next needed speed and angle
-		// 5. Repeat loop with the changed values and using the second motor
+	init_interrupt();
+/*		loop for bars
+		1. Set pwm signal for first stage 
+		2. When expected values (angle, velocity, acceleration), stage_number++
+		3. Loop starts again but with stage_number=+1, therefore next stage begins 
+		4. When robot reaches last stage, therefore reaches the last ladder bar, the program ends */
+	while(finish){
 		do 
 		{
 				pwm_set(stage_number);
 				while(check_values(stage_number)==0){ //either this or time-based command.
 					//wait to achieve the needed values
+					
 				stage_number++;
 			}
-		} while (stage_number<32); //stage number smaller than number of stages at normal brachiation
-				
-		// loop for bars 6-8. ->Sprinting motion
-		//!!needs improvement!!
-		// 1. set pwm for first motor, to leave start position.
-		// 2. After set speed and angle has been achieved, initiate movement for first motor, to grab next bar.
-		// 3. When Optocoupler sends positive signal, release second motor from previous bar, grab next bar.
-		// 5. repeat, with different values for speed and angle and using previously achieved momentum. */
-	
+		} while (stage_number<STAGEAMOUNT); // robot reached the last ladder and finished all stages
+			finish=0;
+		}
+		
 	return (0);
 }
 
-ISR (USART_RX_vect){ //'RX' is for 'recieve'
-	volatile unsigned char recieved_data=UDR0;
-	if(recieved_data==1) PORTD^=0b00010000; // ^= is XOR
-	if(recieved_data==2) PORTD^=0b00100000; // these commands turn LEDs on
-	if(recieved_data==3) PORTD^=0b01000000;
-	if(recieved_data==4) PORTD^=0b10000000;
+void init_interrupt(void){
+	//set the timer mode to CTC <- count to desired value and then restart and count again
+	TCCR0A |= (1 << WGM01);
+	//set the value that you want to count to <- 250 timer ticks (0-249)
+	OCR0A = 0xF9;
+	
+	//enable the interrupt for on compare a for timer 0
+	TIMSK0 |= (1 << OCIE0A); //can be interrupted by Compare A matrch
+	//enable all interrupts
+	sei();
+	
+	//start the timer
+	TCCR0B |= (1 << CS01) | (1 << CS00); //set prescaler to 64 and start
 }
 
-void pwm_set (char input_number){
+ISR (TIMER0_COMPA_vect) {
+	ms_counter++;
+	if (ms_counter == 250){
+		ms_counter=0;
+		elapsedtime=+0.25;
+	}
+	
+}
+
+void pwm_set (uint8_t input_number){
 
 	switch (input_number)
 	{
@@ -92,7 +106,7 @@ void pwm_set (char input_number){
 }
 
 char check_values (char input_number){
-	char agree=0;
-	 //code that checks the input values
-	 return agree;
+	uint8_t done=0;
+	 //code that checks the input values. Returns 1 when done.
+	 return done;
 }
