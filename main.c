@@ -1,22 +1,22 @@
 #define F_CPU 16000000UL
-#define STAGEAMOUNT 32
+#define STAGEAMOUNT 32 //amount of stages. For now this number is arbitrary
 #include <stdio.h>
 #include <avr/io.h>
 #include <util/delay.h>
 #include <avr/eeprom.h>
 #include <avr/interrupt.h>
 #include "usart.h"
-#define BAUDRATE 57600
+#define BAUDRATE 57600 //baudrate number is also arbitrary for now
 #define BAUD_PRESCALER ((F_CPU/(BAUDRATE*16UL))-1)
 
-volatile unsigned int ms_counter;
-float elapsedtime=0;
+volatile unsigned int ms_counter; //value for interrupts
+float elapsedtime=0; //value for main function. It equals time that has passed.
 
 //function prototypes
 void pwm_set (uint8_t); //sets motor pwm.
 uint8_t optocoupler_check (void); //checks if optocoupler signal is 1 or 0. (might need to be an interrupt instead of function).
 char check_values (char); //checks angle, velocity, etc. If needed values are achieved, the device starts grabbing bar.
-void init_interrupt();
+void init_interrupt(); //initiates interrupts
 
 
 typedef struct 
@@ -29,7 +29,7 @@ typedef struct
 	uint8_t motorL3;
 } pwm;
 
-pwm motor;
+pwm motor; //this variable is used for setting pwm values for each of the 6 motors on the machine
 
 
 int main(void)
@@ -39,8 +39,8 @@ int main(void)
 	
 	init_interrupt();
 /*		loop for bars
-		1. Set pwm signal for first stage 
-		2. When expected values (angle, velocity, acceleration), stage_number++
+		1. Set pwm signal for first stage, motors start moving
+		2. When expected values (angle, velocity, acceleration) are correct, stage_number++
 		3. Loop starts again but with stage_number=+1, therefore next stage begins 
 		4. When robot reaches last stage, therefore reaches the last ladder bar, the program ends */
 	while(finish){
