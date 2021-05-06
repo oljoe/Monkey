@@ -6,7 +6,7 @@
 #include <avr/eeprom.h>
 #include <avr/interrupt.h>
 #include "usart.h"
-#include "potentiometer.h"
+// #include "potentiometer.h"
 #define BAUDRATE 57600 //baudrate number is also arbitrary for now
 #define BAUD_PRESCALER ((F_CPU/(BAUDRATE*16UL))-1)
 
@@ -14,29 +14,36 @@ volatile unsigned int ms_counter; //value for interrupts
 float elapsedtime=0; //value for main function. It equals time that has passed.
 
 //function prototypes
-void pwm_set (uint8_t); //sets motor pwm.
+void pwm_set (char); //sets motor pwm.
 uint8_t optocoupler_check (void); //checks if optocoupler signal is 1 or 0. (might need to be an interrupt instead of function).
-char check_values (char); //checks angle, velocity, etc. If needed values are achieved, the device starts grabbing bar.
+char PID (char); //PID controller. checks angle, velocity, etc. If needed values are achieved, the device starts grabbing bar.
 void init_interrupt(); //initiates interrupts
 
+typedef struct //I arbitrarily assumed there are 3 accelerometers. To be changed, when we decide on the amount.
+{
+	float a1;
+	float a2;
+	float a3;
+} accelerometer;
 
 typedef struct 
 {
-	uint8_t motorR1;
-	uint8_t motorR2;
-	uint8_t motorR3;
-	uint8_t motorL1;
-	uint8_t motorL2;
-	uint8_t motorL3;
+	uint8_t R1;
+	uint8_t R2;
+	uint8_t R3;
+	uint8_t L1;
+	uint8_t L2;
+	uint8_t L3;
 } pwm;
 
 pwm motor; //this variable is used for setting pwm values for each of the 6 motors on the machine
+accelerometer angle; //this variable is used by accelerometer to check whether the needed angle is reached
 
 
 int main(void)
 {
 	char finish=1; //when finish =0, program stops.
-	uint8_t stage_number=1; //which stage device is currently on. Used to determine what pwm speed to set.
+	char stage_number=1; //which stage device is currently on. Used to determine what pwm speed to set.
 	
 	init_interrupt();
 /*		loop for bars
@@ -48,7 +55,7 @@ int main(void)
 		do 
 		{
 				pwm_set(stage_number);
-				while(check_values(stage_number)==0){ //either this or time-based command.
+				while(PID(stage_number)==0){ //either this or time-based command.
 					//wait to achieve the needed values
 					
 				stage_number++;
@@ -84,17 +91,22 @@ ISR (TIMER0_COMPA_vect) {
 	
 }
 
-void pwm_set (uint8_t input_number){
+void pwm_set (char input_number){
 
 	switch (input_number)
 	{
 		case 1:{
-			motor.motorL1=1; //i wrote random values here but once we figure out the needed velocity, we'll insert a pwm value needed to get that.
-			motor.motorL2=2;
-			motor.motorL3=2;
-			motor.motorR1=2;
-			motor.motorR2=2;
-			motor.motorR3=2;
+			motor.L1=1; //i wrote random values here but once we figure out the needed velocity, we'll insert a pwm value needed to get that.
+			motor.L2=2;
+			motor.L3=2;
+			motor.R1=2;
+			motor.R2=2;
+			motor.R3=2;
+			
+			angle.a1=43; //here we input the needed angle for each accelerometer on the machine.
+			angle.a2=30;
+			angle.a3=25;
+			
 		}
 		case 2:{}
 	// and so on for all needed stages.
@@ -106,8 +118,14 @@ void pwm_set (uint8_t input_number){
 
 }
 
-char check_values (char input_number){
-	uint8_t done=0;
+char PID (char input_number){
+	char done=0;
 	 //code that checks the input values. Returns 1 when done.
+	 /*
+	 While(angle!=wanted angle && velocity!=wanted velocity)
+	 {
+		integration, derivatives and proportional equations, which process the raw data from the accelerometer, optocouplers, etc. 
+	 }
+	 */
 	 return done;
 }
