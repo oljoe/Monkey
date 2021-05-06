@@ -6,6 +6,7 @@
 #include <avr/eeprom.h>
 #include <avr/interrupt.h>
 #include "usart.h"
+#include "potentiometer.h"
 #define BAUDRATE 57600 //baudrate number is also arbitrary for now
 #define BAUD_PRESCALER ((F_CPU/(BAUDRATE*16UL))-1)
 
