@@ -11,20 +11,14 @@
 #define BAUD_PRESCALER ((F_CPU/(BAUDRATE*16UL))-1)
 
 volatile unsigned int ms_counter; //value for interrupts
-float elapsedtime=0; //value for main function. It equals time that has passed.
 
 //function prototypes
-void pwm_set (char); //sets motor pwm.
+void motor_set (char); //sets motor pwm.
 uint8_t optocoupler_check (void); //checks if optocoupler signal is 1 or 0. (might need to be an interrupt instead of function).
-char PID (char); //PID controller. checks angle, velocity, etc. If needed values are achieved, the device starts grabbing bar.
+char value_check (char); //PID controller. checks angle, velocity, etc. If needed values are achieved, the device starts grabbing bar.
 void init_interrupt(); //initiates interrupts
 
-typedef struct //I arbitrarily assumed there are 3 accelerometers. To be changed, when we decide on the amount.
-{
-	float a1;
-	float a2;
-	float a3;
-} accelerometer;
+//pid controller variables
 
 typedef struct 
 {
@@ -37,8 +31,8 @@ typedef struct
 } pwm;
 
 pwm motor; //this variable is used for setting pwm values for each of the 6 motors on the machine
-accelerometer angle; //this variable is used by accelerometer to check whether the needed angle is reached
-
+uint8_t angle; //this variable is used by accelerometer to check whether the needed angle is reached
+float elapsedtime=0;
 
 int main(void)
 {
@@ -46,16 +40,20 @@ int main(void)
 	char stage_number=1; //which stage device is currently on. Used to determine what pwm speed to set.
 	
 	init_interrupt();
+	
 /*		loop for bars
-		1. Set pwm signal for first stage, motors start moving
+		1. Calibrate PWM value until desired motor speed is achieved.
 		2. When expected values (angle, velocity, acceleration) are correct, stage_number++
-		3. Loop starts again but with stage_number=+1, therefore next stage begins 
-		4. When robot reaches last stage, therefore reaches the last ladder bar, the program ends */
+		3. Loop starts again but with stage_number=+1, therefore next stage begins.
+		4. Second stage, gripper motors activate. Machine grips bar.
+		6. When Opto-coupler and switch =1, gripper caught bar. Stage complete
+		7. Begin next stage
+*/		
 	while(finish){
 		do 
 		{
-				pwm_set(stage_number);
-				while(PID(stage_number)==0){ //either this or time-based command.
+				motor_set(stage_number);
+				while(value_check(stage_number)==0){ //either this or time-based command.
 					//wait to achieve the needed values
 					
 				stage_number++;
@@ -91,21 +89,19 @@ ISR (TIMER0_COMPA_vect) {
 	
 }
 
-void pwm_set (char input_number){
+void motor_set (char input_number){
 
 	switch (input_number)
 	{
 		case 1:{
-			motor.L1=1; //i wrote random values here but once we figure out the needed velocity, we'll insert a pwm value needed to get that.
+			motor.L1=1; //requested velocity for each motor in set stage is input into these values
 			motor.L2=2;
 			motor.L3=2;
 			motor.R1=2;
 			motor.R2=2;
 			motor.R3=2;
 			
-			angle.a1=43; //here we input the needed angle for each accelerometer on the machine.
-			angle.a2=30;
-			angle.a3=25;
+			angle=43; //requested angle for machine in set stage is set
 			
 		}
 		case 2:{}
@@ -118,14 +114,8 @@ void pwm_set (char input_number){
 
 }
 
-char PID (char input_number){
+char value_check (char input_number){
 	char done=0;
-	 //code that checks the input values. Returns 1 when done.
-	 /*
-	 While(angle!=wanted angle && velocity!=wanted velocity)
-	 {
-		integration, derivatives and proportional equations, which process the raw data from the accelerometer, optocouplers, etc. 
-	 }
-	 */
+	
 	 return done;
 }
