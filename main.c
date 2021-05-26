@@ -40,7 +40,7 @@ int main(void)
 		data_array[4] = i2c_read_register8(MMA8451_REG_OUT_Z_MSB);
 		data_array[5] = i2c_read_register8(MMA8451_REG_OUT_Z_LSB);
 
-		//ADD EXPLANATION
+		
 		//X-axis acceleration normalization
 		x_val = ((short) (data_array[0]<<8 | data_array[1])) >> 2; // Compute 14-bit X-axis output value
 		x_val_float = x_val/16384.0;    // +/-2g range -> 1g = 16384/4 = 4096 counts
@@ -54,7 +54,6 @@ int main(void)
 		z_val_float = z_val/16384.0;   // +/-2g range -> 1g = 16384/4 = 4096 counts
 		
 
-		//ADD EXPLANATION
 		// Compute X-axis offset correction value
 		Xoffset = x_val / 8 * (-1);
 
@@ -64,12 +63,11 @@ int main(void)
 		// Compute Z-axis offset correction value
 		Zoffset = (x_val - SENSITIVITY_2G) / 8 * (-1);
 		
-		//ADD EXPLANATION
 		x_val+=Xoffset;
 		y_val+=Yoffset;
 		z_val+=Zoffset;
 		
-		//ADD EXPLANATION
+		
 		//Calculating Angles
 		x_angle = atan(x_val_float/z_val_float);
 		x_angle = x_angle*(180.0/3.141592);
@@ -134,7 +132,7 @@ void MMA8451_init()
 	i2c_start(0x3A+I2C_WRITE);
 	i2c_write(MMA8451_REG_WHOAMI);
 	i2c_rep_start(0x3A+I2C_READ);
-	x = i2c_readNak();		//if x not 0x3A then false  //WHY?!
+	x = i2c_readNak();		//if x not 0x3A then false  
 	i2c_stop();
 	
 	//enabled	
@@ -144,7 +142,7 @@ void MMA8451_init()
 	
 	i2c_write_register8(MMA8451_REG_CTRL_REG2, 0x40);		// reset
 	_delay_ms(10);											// very important
-	// test returværdi fra i2c_start om device er busy //PREVEDI!
+	// test returvÃ¦rdi fra i2c_start om device er busy
 	
 	y = i2c_read_register8(MMA8451_REG_CTRL_REG2);
 	
