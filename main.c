@@ -1,121 +1,191 @@
-#define F_CPU 16000000UL
-#define STAGEAMOUNT 32 //amount of stages. For now this number is arbitrary
-#include <stdio.h>
+
+#define F_CPU 16E6
 #include <avr/io.h>
+#include <stdio.h>
 #include <util/delay.h>
-#include <avr/eeprom.h>
-#include <avr/interrupt.h>
+#include <math.h>
+#include "i2cmaster.h"	// Enable communication to sensor (i2c_init())							(twimaster.c)
+// #include "lcd.h"		// Enable the LCD (lcd_init(), lcd_clear(), lcd_gotoxy())				(lcd.c)
 #include "usart.h"
-// #include "potentiometer.h"
-#define BAUDRATE 57600 //baudrate number is also arbitrary for now
-#define BAUD_PRESCALER ((F_CPU/(BAUDRATE*16UL))-1)
+#include "MMA8451.h"
 
-volatile unsigned int ms_counter; //value for interrupts
+#define SENSITIVITY_2G    1024
 
-//function prototypes
-void motor_set (char); //sets motor pwm.
-uint8_t optocoupler_check (void); //checks if optocoupler signal is 1 or 0. (might need to be an interrupt instead of function).
-char value_check (char); //PID controller. checks angle, velocity, etc. If needed values are achieved, the device starts grabbing bar.
-void init_interrupt(); //initiates interrupts
+void MMA8451_init();
+void i2c_write_register8(unsigned char reg, unsigned char value);
+unsigned char i2c_read_register8(unsigned char reg);
 
-//pid controller variables
+unsigned char x, y,z,Xoffset,Yoffset,Zoffset;
+int x_val, y_val, z_val;
+float x_val_float, y_val_float, z_val_float;
+float x_angle, y_angle,z_angle;
+float x_g, y_g,z_g;
+unsigned char data_array[10];
 
-typedef struct 
-{
-	uint8_t R1;
-	uint8_t R2;
-	uint8_t R3;
-	uint8_t L1;
-	uint8_t L2;
-	uint8_t L3;
-} pwm;
-
-pwm motor; //this variable is used for setting pwm values for each of the 6 motors on the machine
-uint8_t angle; //this variable is used by accelerometer to check whether the needed angle is reached
-float elapsedtime=0;
 
 int main(void)
 {
-	char finish=1; //when finish =0, program stops.
-	char stage_number=1; //which stage device is currently on. Used to determine what pwm speed to set.
+	uart_init(); // open the communication to the microcontroller
+	i2c_init(); // initialize i2c
+	io_redirect(); // redirect i/o
+	MMA8451_init();
 	
-	init_interrupt();
-	
-/*		loop for bars
-		1. Calibrate PWM value until desired motor speed is achieved.
-		2. When expected values (angle, velocity, acceleration) are correct, stage_number++
-		3. Loop starts again but with stage_number=+1, therefore next stage begins.
-		4. Second stage, gripper motors activate. Machine grips bar.
-		6. When Opto-coupler and switch =1, gripper caught bar. Stage complete
-		7. Begin next stage
-*/		
-	while(finish){
-		do 
-		{
-				motor_set(stage_number);
-				while(value_check(stage_number)==0){ //either this or time-based command.
-					//wait to achieve the needed values
-					
-				stage_number++;
-			}
-		} while (stage_number<STAGEAMOUNT); // robot reached the last ladder and finished all stages
-			finish=0;
-		}
-		
-	return (0);
-}
-
-void init_interrupt(void){
-	//set the timer mode to CTC <- count to desired value and then restart and count again
-	TCCR0A |= (1 << WGM01);
-	//set the value that you want to count to <- 250 timer ticks (0-249)
-	OCR0A = 0xF9;
-	
-	//enable the interrupt for on compare a for timer 0
-	TIMSK0 |= (1 << OCIE0A); //can be interrupted by Compare A matrch
-	//enable all interrupts
-	sei();
-	
-	//start the timer
-	TCCR0B |= (1 << CS01) | (1 << CS00); //set prescaler to 64 and start
-}
-
-ISR (TIMER0_COMPA_vect) {
-	ms_counter++;
-	if (ms_counter == 250){
-		ms_counter=0;
-		elapsedtime=+0.25;
-	}
-	
-}
-
-void motor_set (char input_number){
-
-	switch (input_number)
+	while (1)
 	{
-		case 1:{
-			motor.L1=1; //requested velocity for each motor in set stage is input into these values
-			motor.L2=2;
-			motor.L3=2;
-			motor.R1=2;
-			motor.R2=2;
-			motor.R3=2;
-			
-			angle=43; //requested angle for machine in set stage is set
-			
-		}
-		case 2:{}
-	// and so on for all needed stages.
-	
-	//Using a PWM command, input the chosen motorL1,L2,... values
-	
-	}
+		//Reading accelerometer's registers
+		data_array[0] = i2c_read_register8(MMA8451_REG_OUT_X_MSB);
+		data_array[1] = i2c_read_register8(MMA8451_REG_OUT_X_LSB);
+		data_array[2] = i2c_read_register8(MMA8451_REG_OUT_Y_MSB);
+		data_array[3] = i2c_read_register8(MMA8451_REG_OUT_Y_LSB);
+		data_array[4] = i2c_read_register8(MMA8451_REG_OUT_Z_MSB);
+		data_array[5] = i2c_read_register8(MMA8451_REG_OUT_Z_LSB);
+
+		//ADD EXPLANATION
+		//X-axis acceleration normalization
+		x_val = ((short) (data_array[0]<<8 | data_array[1])) >> 2; // Compute 14-bit X-axis output value
+		x_val_float = x_val/16384.0;    // +/-2g range -> 1g = 16384/4 = 4096 counts
+
+		//Y-axis acceleration normalization
+		y_val = ((short) (data_array[2]<<8 | data_array[3])) >> 2; // Compute 14-bit Y-axis output value
+		y_val_float = y_val/16384.0;   // +/-2g range -> 1g = 16384/4 = 4096 counts
+		
+		//Z-axis acceleration normalization
+		z_val = ((short) (data_array[4]<<8 | data_array[5])) >> 2; // Compute 14-bit Z-axis output value
+		z_val_float = z_val/16384.0;   // +/-2g range -> 1g = 16384/4 = 4096 counts
 		
 
+		//ADD EXPLANATION
+		// Compute X-axis offset correction value
+		Xoffset = x_val / 8 * (-1);
+
+		// Compute Y-axis offset correction value
+		Yoffset = y_val / 8 * (-1);
+		
+		// Compute Z-axis offset correction value
+		Zoffset = (x_val - SENSITIVITY_2G) / 8 * (-1);
+		
+		//ADD EXPLANATION
+		x_val+=Xoffset;
+		y_val+=Yoffset;
+		z_val+=Zoffset;
+		
+		//ADD EXPLANATION
+		//Calculating Angles
+		x_angle = atan(x_val_float/z_val_float);
+		x_angle = x_angle*(180.0/3.141592);
+
+		
+		y_angle = atan(y_val_float/z_val_float);
+		y_angle = y_angle*(180.0/3.141592);
+
+		
+		z_angle = atan(x_val_float/y_val_float);
+		z_angle = z_angle*(180.0/3.141592);
+		
+		//orientation = getOrientation(); //reading the detected orientation
+		
+		//Calculating Acceleration
+		x_g = ((float) x_val) / SENSITIVITY_2G;
+		y_g = ((float) y_val) / SENSITIVITY_2G;
+		z_g = ((float) z_val) / SENSITIVITY_2G;
+		
+
+		// ***Printing the x-axis angle/acceleration***
+		//If using LCD before printf -> LCD_set_cursor(0,0);
+		
+		printf("X:%6.2f ", x_angle);  // X ANGLE
+		printf("X:%7.2f [m/s^2]", x_g);  // X ACC
+		// LCD_set_cursor(0,0); printf("%7d", x_val);
+		// LCD_set_cursor(0,0); printf("%f", x_val_float);
+		
+		// ***Printing the y-axis angle/acceleration***
+		//If using LCD before printf -> LCD_set_cursor(0,1);
+
+		printf("Y:%6.2f", y_angle); // Y ANGLE
+		printf("Y:%7.2f [m/s^2]", y_g);  // Y ACC
+		//LCD_set_cursor(0,1); printf("%7d", y_val);
+		//LCD_set_cursor(0,1); printf("%f", y_val_float);
+		
+		// ***Printing the z-axis angle/acceleration***
+		//If using LCD before printf -> LCD_set_cursor(9,1);;
+		printf("Z:%6.2f \n", z_angle); // Z ANGLE
+		//LCD_set_cursor(9,1); printf("Z:%7.2f [m/s^2]", z_g);  // Z ACC
+		
+
+		// ***Cycle counting***
+		//LCD_set_cursor(0,0); printf("%7d", iterations);
+		
+		// ***Printing the detected orientation***
+		//LCD_set_cursor(0,0); printf("%d",orientation);
+		
+		// ***Printing Registers***
+		//LCD_set_cursor(0,0); printf("%d", data_array[0]);
+		//LCD_set_cursor(2,0); printf("%d", data_array[1]);
+		//LCD_set_cursor(3,0); printf("%d", data_array[4]);
+		//LCD_set_cursor(4,0); printf("%d", data_array[5]);
+		
+	}
 }
 
-char value_check (char input_number){
-	char done=0;
+void MMA8451_init()
+{
+
+	//enabled all of these
+	i2c_start(0x3A+I2C_WRITE);
+	i2c_write(MMA8451_REG_WHOAMI);
+	i2c_rep_start(0x3A+I2C_READ);
+	x = i2c_readNak();		//if x not 0x3A then false  //WHY?!
+	i2c_stop();
 	
-	 return done;
+	//enabled	
+	i2c_write_register8(MMA8451_REG_CTRL_REG2, 0x40);
+	
+	x = i2c_read_register8(MMA8451_REG_WHOAMI);
+	
+	i2c_write_register8(MMA8451_REG_CTRL_REG2, 0x40);		// reset
+	_delay_ms(10);											// very important
+	// test returværdi fra i2c_start om device er busy //PREVEDI!
+	
+	y = i2c_read_register8(MMA8451_REG_CTRL_REG2);
+	
+	// Enable 2G range
+	i2c_write_register8(MMA8451_REG_XYZ_DATA_CFG, MMA8451_RANGE_2_G);
+
+	// High resolution
+	i2c_write_register8(MMA8451_REG_CTRL_REG2, 0x02);
+
+	// DRDY on INT1
+	i2c_write_register8(MMA8451_REG_CTRL_REG4, 0x01);
+	i2c_write_register8(MMA8451_REG_CTRL_REG5, 0x01);
+
+	// Turn on orientation config
+	i2c_write_register8(MMA8451_REG_PL_CFG, 0x40);
+
+	// Activate at max rate, low noise mode,
+	i2c_write_register8(MMA8451_REG_CTRL_REG1, 0x20 | 0x10 | 0x08 | 0x04 | 0x01);
+	
+	
+}
+
+void i2c_write_register8(unsigned char reg, unsigned char value)
+{
+	i2c_start(MMA8451_DEFAULT_ADDRESS+I2C_WRITE);
+	i2c_write(reg);
+	i2c_write(value);
+	i2c_stop();
+}
+
+unsigned char i2c_read_register8(unsigned char reg)
+{
+	unsigned char ret_val=0;
+	i2c_start(MMA8451_DEFAULT_ADDRESS+I2C_WRITE);
+	i2c_write(reg);
+	i2c_rep_start(MMA8451_DEFAULT_ADDRESS+I2C_READ);
+	ret_val = i2c_readNak();
+	i2c_stop();
+	return(ret_val);
+}
+
+unsigned char getOrientation(void) {
+	return i2c_read_register8(MMA8451_REG_PL_STATUS) & 0x07;
 }
