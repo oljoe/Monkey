@@ -2,7 +2,7 @@
  * Motor_with_Chip.c
  *
  * Created: 26/05/2021 09.50.23
- * Author : danie
+ * Author : Daniel Szanka
  */ 
 
 #include <avr/io.h>
@@ -13,13 +13,6 @@
 #define CCW 2
 #define BRAKE 3
 #define number_of_motors 6
-
-//PWM pins set as outputs
-DDRB |= (1 << DDB1) | (1 << DDB2) | (1 << DDB3);
-DDRD |= (1 << DDD3) | (1 << DDD5) | (1 << DDD6);
-
-// Latch, Clock and Data pins for 74HC595 set as outputs
-DDRD |= (1 << DDD2) | (1 << DDD4) | (1 << DDD7);
 
 
 void pwm_init (void);
@@ -36,10 +29,18 @@ struct Motors_t{
 
 struct Motors_t M[number_of_motors];
 
-unsigned int motorstate_array[]= {M[5].IN[1], M[5].IN[0], M[4].IN[1], M[4].IN[0], M[3].IN[1], M[3].IN[0], M[2].IN[1], M[2].IN[0], M[1].IN[1], M[1].IN[0], M[0].IN[1], M[0].IN[0]}
+unsigned int motorstate_array[12];
 
-int main(void)
-{
+int main(void){
+//PWM pins set as outputs
+DDRB |= (1 << DDB1) | (1 << DDB2) | (1 << DDB3);
+DDRD |= (1 << DDD3) | (1 << DDD5) | (1 << DDD6);
+
+// Latch, Clock and Data pins for 74HC595 set as outputs
+DDRD |= (1 << DDD2) | (1 << DDD4) | (1 << DDD7);
+
+
+
     while (1) 
     {
 		set_pwm_signal();
@@ -86,18 +87,29 @@ void motor_state (void){
 			case BRAKE: M[i].IN[0] = 0; M[i].IN[1] = 0; break;
 			}
 		}
+	motorstate_array[0] = M[5].IN[1];
+	motorstate_array[1] = M[5].IN[0];
+	motorstate_array[2] = M[4].IN[1];
+	motorstate_array[3] = M[4].IN[0];
+	motorstate_array[4] = M[3].IN[1];
+	motorstate_array[5] = M[3].IN[0];
+	motorstate_array[6] = M[2].IN[1];
+	motorstate_array[7] = M[2].IN[0];
+	motorstate_array[8] = M[1].IN[1];
+	motorstate_array[9] = M[1].IN[0];
+	motorstate_array[10] = M[0].IN[1];
+	motorstate_array[11] = M[0].IN[0];
 }
 
 void send_data_to_chip (void){
-	PORTD &= (0 << DDD7) // Latch is on low
+	PORTD &= (0 << DDD7); // Latch is on low
 	
 	for (int i=11; i<=0; i--)
 	{
-		PORTD &= (0 << DDD4) //Clock is on low
-		if (motorstate_array[i] == 0) PORTD &= (0 << DDD2) //Send 0 to data pin
-		if (motorstate_array[i] == 1) PORTD |= (1 << DDD2) //Send 1 to data pin
-		PORTD |= (1 << DDD4) //Clock is on high
+		PORTD &= (0 << DDD4); //Clock is on low
+		if (motorstate_array[i] == 0) PORTD &= (0 << DDD2); //Send 0 to data pin
+		if (motorstate_array[i] == 1) PORTD |= (1 << DDD2); //Send 1 to data pin
+		PORTD |= (1 << DDD4); //Clock is on high
 	}
-	PORTD |= (1 << DDD7) // Latch is on high
+	PORTD |= (1 << DDD7); // Latch is on high
 }
-
