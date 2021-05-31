@@ -1,0 +1,236 @@
+/*
+ * Main_code.c
+ *
+ * Created: 31/05/2021 23.24.01
+ * Author : danie
+ */ 
+
+#include <avr/io.h>
+#include <stdio.h>
+#include <avr/io.h>
+
+
+int main(void)
+{
+	//Setting up PINS to operate
+	DDRC &= (0 << DDC0) & (0 << DDC1) & (0 << DDC2) & (0 << DDC3); // A0...A3 set pin as inputs
+	DDRB &= (0 << DDB0) & (0 << DDB4) & (0 << DDB5); DDRD &= (0 << DDD0); // Set D8 D12 D13 D0 as inputs
+	PORTB |= (1 << PORTB0) | (1 << PORTB5) | (1 << PORTB5); PORTD |= (1 << PORTD0); // Enable pull-ups for D8 D12 D13 D0 pins
+	DDRD |= (1 << DDD2) | (1 << DDD3) | (1 << DDD4) | (1 << DDD5) | (1 << DDD6) | (1 << DDD7); DDRB |= (1 << DDB1) | (1 << DDB2) | (1 << DDB3); // setting D2 D3 D4 D5 D6 D7 D9 D10 D11 as outputs
+	
+    /* Replace with your application code */
+    while (1) 
+    {
+		//start-up -> claws are open
+		//create a loop where motor 5 and 6 is going clockwise fullspeed until the microswitch does not close down
+		
+		// stage 1
+		// open the claws until the microswitch does not open - M6
+		// start motor 2 4 to grab the bar #3 and motor 1 3 to get enough velocity
+    }
+}
+
+//Opto-coupler code
+		 DDRD = 0x00; //Set all PD pins as inputs for the optocoupler (PD7)
+		 PORTD = 0xFF; // Enable pull at PD inputs
+		 if (PIND==0b01111111) // change if PD7 pin is not used
+		 {
+			 _delay_ms(1);
+			 printf("No obstacle");
+		 }
+		 else
+		 {
+			 printf("Obstacle!");
+		 }
+
+	 }
+	 
+//Switches
+   DDRD = 0x00; //Set all PD pins as inputs for the microswitch (used PD7)
+   PORTD = 0xFF; // Enable pull at PD inputs
+   
+   
+   printf ("Working bitch");
+   
+   char Check_Switch(void)   //returns 1 if switch attached to PD7 is closed, 0 if switch is open
+   {
+	   if (PIND==0b11111111) //check if pin PD7 is low, meaning switch is on
+	   {
+		   _delay_ms(50);  //wait 50 msec to allow any switch bounce to die out
+
+		   if(PIND==0b01111111) return(1);   //the switch is really closed
+		   printf ("The switch is pressed.");
+	   }
+	   return(0);  //the switch is open
+	   }  /* end of Check_P0 function */
+
+   }
+   
+   //potentiometer
+   #define F_CPU16000000UL
+   #include <avr/io.h>
+   #include <stdio.h>
+   #include <stdint.h>
+   #include "usart.h"
+   #include <util/delay.h>
+   #define ADC_PIN 1
+   uint16_t adc_read(uint8_t adc_channel);
+   uint16_t adc_result;
+   double voltage [10], sum_voltage = 0, avg_voltage;
+   int i=0, n=0;
+
+   int main (void)
+   {
+	   uart_init();
+	   io_redirect();
+	   DDRC=0xF0;//PC0..PC3 are input of the ADC
+	   PORTC=0x00;//make sure no pull-ups *make my own connections
+	   // Select Vref = AVcc
+	   ADMUX=(1<<REFS0);
+	   //set pre-scaler to 128 and turn on the ADC module
+	   ADCSRA=(1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0)|(1<<ADEN);
+	   while (1)
+	   {
+		   adc_result=adc_read(ADC_PIN);
+		   voltage[i]=(5000.0/1024)*adc_result;
+		   if (n<10)
+		   {
+			   sum_voltage += voltage[i];
+			   avg_voltage = sum_voltage/(i+1);
+		   }
+		   else
+		   {
+			   if (i == 9) sum_voltage -= voltage[0];
+			   if (i != 9) sum_voltage -= voltage[i+1];
+			   sum_voltage += voltage[i];
+			   avg_voltage = sum_voltage/10;
+		   }
+		   
+		   printf("%f, %f, %f, %d\n", voltage[i], sum_voltage, avg_voltage, i);
+		   n++;
+		   i++;
+		   if (i == 10) i = 0;
+	   }
+	   return (0);
+   }
+
+   uint16_t adc_read(uint8_t adc_channel){
+	   ADMUX &= 0xF0; // clear any previously used channel, but keep internal reference
+	   ADMUX |= adc_channel; // set the desired channel
+	   //start a conversion
+	   ADCSRA |= (1<<ADSC);
+	   // now wait for the conversion to complete
+	   while ( (ADCSRA & (1<<ADSC)) );
+	   // now we have the result, so we return it to the calling function as a 16 bit unsigned int
+	   return ADC;
+   }
+
+//Motor controller
+#include <avr/io.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#define CW 1
+#define CCW 2
+#define BRAKE 3
+#define number_of_motors 6
+
+
+void pwm_init (void);
+void motor_state (void);
+void set_pwm_signal (void);
+
+void send_data_to_chip (void);
+
+struct Motors_t{
+	unsigned int pwm_value;
+	unsigned int IN[2];
+	unsigned int motorstate;
+};
+
+struct Motors_t M[number_of_motors];
+
+unsigned int motorstate_array[12];
+
+int main(void){
+	//PWM pins set as outputs
+	DDRB |= (1 << DDB1) | (1 << DDB2) | (1 << DDB3);
+	DDRD |= (1 << DDD3) | (1 << DDD5) | (1 << DDD6);
+
+	// Latch, Clock and Data pins for 74HC595 set as outputs
+	DDRD |= (1 << DDD2) | (1 << DDD4) | (1 << DDD7);
+
+
+
+	while (1)
+	{
+		set_pwm_signal();
+		motor_state();
+		pwm_init();
+		send_data_to_chip();
+		return 0;
+	}
+}
+void pwm_init(void) {
+	TCCR0A |= (1 << COM0A1) | (1 << COM0B1) | (1 << WGM01) | (1 << WGM00); // enable fast PWM mode and PD3
+	TCCR0B |= (1 << CS00) | (1 << CS01); // pre-scaler 64
+	
+	TCCR1A |= (1 << COM1A1) | (1 << COM1B1) | (1 << WGM10); // enable fast PWM mode and PD3
+	TCCR1B |= (1 << WGM12) | (1 << CS10) | (1 << CS11); // pre-scaler 64
+	
+	TCCR2A |= (1<< COM2A1) | (1 << COM2B1) | (1 << WGM21) | (1 << WGM20); // enable fast PWM mode and PD3
+	TCCR2B |= (1 << CS22); // pre-scaler 64
+	
+	OCR2B = M[0].pwm_value; //D3 pin -> MotorBoard-1 enA
+	OCR0B = M[1].pwm_value; //D5 pin -> MotorBoard-1 enB
+	OCR0A = M[2].pwm_value; //D6 pin -> MotorBoard-2 enA
+	OCR1A = M[3].pwm_value; //D9 pin -> MotorBoard-2 enB
+	OCR1B = M[4].pwm_value; //D10 pin -> MotorBoard-3 enA
+	OCR2A = M[5].pwm_value; //D11 pin -> MotorBoard-3 enB
+}
+
+void set_pwm_signal(){
+	for (int i=0; i<6; i++)
+	{
+		printf("\nPlease give Motor #%d PWM cycle:", i+1);
+		scanf("%d", &M[i].pwm_value);
+	}
+}
+
+void motor_state (void){
+	for (int i=0; i<6; i++)
+	{
+		printf("\nPlease give Motor #%d motorstate CW/CCW/BRAKE:", i+1);
+		scanf("%d", &M[i].motorstate);
+		switch (M[i].motorstate){
+			case CW: M[i].IN[0] = 1; M[i].IN[1] = 0; break;
+			case CCW: M[i].IN[0] = 0; M[i].IN[1] = 1; break;
+			case BRAKE: M[i].IN[0] = 0; M[i].IN[1] = 0; break;
+		}
+	}
+	motorstate_array[0] = M[5].IN[1];
+	motorstate_array[1] = M[5].IN[0];
+	motorstate_array[2] = M[4].IN[1];
+	motorstate_array[3] = M[4].IN[0];
+	motorstate_array[4] = M[3].IN[1];
+	motorstate_array[5] = M[3].IN[0];
+	motorstate_array[6] = M[2].IN[1];
+	motorstate_array[7] = M[2].IN[0];
+	motorstate_array[8] = M[1].IN[1];
+	motorstate_array[9] = M[1].IN[0];
+	motorstate_array[10] = M[0].IN[1];
+	motorstate_array[11] = M[0].IN[0];
+}
+
+void send_data_to_chip (void){
+	PORTD &= (0 << DDD7); // Latch is on low
+	
+	for (int i=11; i<=0; i--)
+	{
+		PORTD &= (0 << DDD4); //Clock is on low
+		if (motorstate_array[i] == 0) PORTD &= (0 << DDD2); //Send 0 to data pin
+		if (motorstate_array[i] == 1) PORTD |= (1 << DDD2); //Send 1 to data pin
+		PORTD |= (1 << DDD4); //Clock is on high
+	}
+	PORTD |= (1 << DDD7); // Latch is on high
+}
