@@ -14,6 +14,16 @@
 #define BRAKE 3
 #define number_of_motors 6
 
+<<<<<<< HEAD
+=======
+
+void pwm_init (void);
+void motor_state (void);
+void set_pwm_signal (void);
+
+void send_data_to_chip (void);
+
+>>>>>>> a1624c9dd05acb5672fdbc303eac42b7dc7b9151
 struct Motors_t{
 	unsigned int pwm_value;
 	unsigned int IN[2];
@@ -24,6 +34,28 @@ struct Motors_t M[number_of_motors];
 
 unsigned int motorstate_array[12];
 
+<<<<<<< HEAD
+=======
+int main(void){
+//PWM pins set as outputs
+DDRB |= (1 << DDB1) | (1 << DDB2) | (1 << DDB3);
+DDRD |= (1 << DDD3) | (1 << DDD5) | (1 << DDD6);
+
+// Latch, Clock and Data pins for 74HC595 set as outputs
+DDRD |= (1 << DDD2) | (1 << DDD4) | (1 << DDD7);
+
+
+
+    while (1) 
+    {
+		set_pwm_signal();
+		motor_state();
+		pwm_init();
+		send_data_to_chip();
+		return 0;
+    }
+}
+>>>>>>> a1624c9dd05acb5672fdbc303eac42b7dc7b9151
 void pwm_init(void) {
 	TCCR0A |= (1 << COM0A1) | (1 << COM0B1) | (1 << WGM01) | (1 << WGM00); // enable fast PWM mode and PD3
 	TCCR0B |= (1 << CS00) | (1 << CS01); // pre-scaler 64	
@@ -86,4 +118,8 @@ void send_data_to_chip (void){
 		PORTD |= (1 << DDD4); //Clock is on high
 	}
 	PORTD |= (1 << DDD7); // Latch is on high
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> a1624c9dd05acb5672fdbc303eac42b7dc7b9151
