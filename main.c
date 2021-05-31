@@ -31,6 +31,8 @@ pwm motor; //this variable is used for setting pwm values for each of the 6 moto
 uint8_t angle; //this variable is used by accelerometer to check whether the needed angle is reached
 volatile int ms=0;
 
+
+
 int main(void)
 {
 	uart_init();
@@ -108,6 +110,8 @@ char value_check (unsigned char input_number){
 	 return done;
 }
 
+
+//INTERRUPT ROUTINE for the COUNTER (1ms)
 ISR(TIMER0_COMPA_vect){
 	ms++;
 }
