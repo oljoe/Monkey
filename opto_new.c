@@ -16,12 +16,12 @@ unsigned char on=0;
 		 PORTD = 0xFF; // Enable pull at PD inputs
 		 if (PIND==0b01111111) // change if PD7 pin is not used
 		 {
-			 return 1;
+			 on=1;
 		 }
 		 else
 		 {
-			 return 0;
+			 on=0;
 		 }
-
+	return on;
 	 }
 
