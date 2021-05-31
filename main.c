@@ -3,46 +3,56 @@
 #include <stdio.h>
 #include <avr/io.h>
 #include <util/delay.h>
-#include <avr/eeprom.h>
 #include <avr/interrupt.h>
+#include <stdlib.h>
 #include "usart.h"
-// #include "potentiometer.h"
+#include "motorboard.h"
+#include "potentiometer.h"
+
 #define BAUDRATE 57600 //baudrate number is also arbitrary for now
 #define BAUD_PRESCALER ((F_CPU/(BAUDRATE*16UL))-1)
 
-volatile unsigned int ms_counter; //value for interrupts
-
-//function prototypes
-void motor_set (char); //sets motor pwm.
-uint8_t optocoupler_check (void); //checks if optocoupler signal is 1 or 0. (might need to be an interrupt instead of function).
-char value_check (char); //PID controller. checks angle, velocity, etc. If needed values are achieved, the device starts grabbing bar.
-void init_interrupt(); //initiates interrupts
-
-//pid controller variables
-
-typedef struct 
+typedef struct
 {
-	uint8_t R1;
-	uint8_t R2;
-	uint8_t R3;
-	uint8_t L1;
+	uint8_t R1; //right arm bottom actuator
+	uint8_t R2; //right arm middle actuator
+	uint8_t R3; //right arm top actuator
+	uint8_t L1; //left arm ...
 	uint8_t L2;
 	uint8_t L3;
 } pwm;
 
+//function prototypes
+void motor_set (unsigned char); //sets motor pwm.
+uint8_t optocoupler_check (void); //checks if optocoupler signal is 1 or 0. (might need to be an interrupt instead of function).
+char value_check (unsigned char); //PID controller. checks angle, velocity, etc. If needed values are achieved, the device starts grabbing bar.
+
 pwm motor; //this variable is used for setting pwm values for each of the 6 motors on the machine
 uint8_t angle; //this variable is used by accelerometer to check whether the needed angle is reached
-float elapsedtime=0;
+volatile int ms=0;
 
 int main(void)
 {
+	uart_init();
+	io_redirect();
+	//PWM pins set as outputs
+	DDRB |= (1 << DDB1) | (1 << DDB2) | (1 << DDB3);
+	DDRD |= (1 << DDD3) | (1 << DDD5) | (1 << DDD6);
+
+	// Latch, Clock and Data pins for 74HC595 set as outputs
+	DDRD |= (1 << DDD2) | (1 << DDD4) | (1 << DDD7);
+	
 	char finish=1; //when finish =0, program stops.
 	char stage_number=1; //which stage device is currently on. Used to determine what pwm speed to set.
 	
-	init_interrupt();
+	// COUNTER (1 ms)
+	TCCR0A|=(1<<WGM01);	 // set timer to ctc
+	OCR0A=0xF9;			 // set value
+	TIMSK0|=(1<<OCIE0A); // enable interrupt on compare a for timer 0
+	sei();
 	
 /*		loop for bars
-		1. Calibrate PWM value until desired motor speed is achieved.
+		1. Set pwm signal and the signals duration
 		2. When expected values (angle, velocity, acceleration) are correct, stage_number++
 		3. Loop starts again but with stage_number=+1, therefore next stage begins.
 		4. Second stage, gripper motors activate. Machine grips bar.
@@ -65,31 +75,9 @@ int main(void)
 	return (0);
 }
 
-void init_interrupt(void){
-	//set the timer mode to CTC <- count to desired value and then restart and count again
-	TCCR0A |= (1 << WGM01);
-	//set the value that you want to count to <- 250 timer ticks (0-249)
-	OCR0A = 0xF9;
-	
-	//enable the interrupt for on compare a for timer 0
-	TIMSK0 |= (1 << OCIE0A); //can be interrupted by Compare A matrch
-	//enable all interrupts
-	sei();
-	
-	//start the timer
-	TCCR0B |= (1 << CS01) | (1 << CS00); //set prescaler to 64 and start
-}
 
-ISR (TIMER0_COMPA_vect) {
-	ms_counter++;
-	if (ms_counter == 250){
-		ms_counter=0;
-		elapsedtime=+0.25;
-	}
 	
-}
-
-void motor_set (char input_number){
+void motor_set (unsigned char input_number){
 
 	switch (input_number)
 	{
@@ -114,8 +102,12 @@ void motor_set (char input_number){
 
 }
 
-char value_check (char input_number){
+char value_check (unsigned char input_number){
 	char done=0;
 	
 	 return done;
+}
+
+ISR(TIMER0_COMPA_vect){
+	ms++;
 }
