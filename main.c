@@ -26,11 +26,12 @@ typedef struct
 void motor_set (unsigned char); //sets motor pwm.
 uint8_t optocoupler_check (void); //checks if optocoupler signal is 1 or 0. (might need to be an interrupt instead of function).
 char value_check (unsigned char); //PID controller. checks angle, velocity, etc. If needed values are achieved, the device starts grabbing bar.
+void init_interrupt(); //function initiates 
 
 pwm motor; //this variable is used for setting pwm values for each of the 6 motors on the machine
 uint8_t angle; //this variable is used by accelerometer to check whether the needed angle is reached
 volatile int ms=0;
-
+float second_counter=0;
 
 
 int main(void)
@@ -110,8 +111,27 @@ char value_check (unsigned char input_number){
 	 return done;
 }
 
+void init_interrupt(void){
+	//set the timer mode to CTC <- count to desired value and then restart and count again
+	TCCR0A |= (1 << WGM01);
+	//set the value that you want to count to <- 250 timer ticks (0-249)
+	OCR0A = 0xF9;
+	
+	//enable the interrupt for on compare a for timer 0
+	TIMSK0 |= (1 << OCIE0A); //can be interrupted by Compare A match
+	//enable all interrupts
+	sei();
+	
+	//start the timer
+	TCCR0B |= (1 << CS01) | (1 << CS00); //set prescaler to 64 and start
+}
 
 //INTERRUPT ROUTINE for the COUNTER (1ms)
-ISR(TIMER0_COMPA_vect){
+ISR (TIMER0_COMPA_vect) {
 	ms++;
-}
+	if (ms == 500){
+		PORTD ^=0xF0; //toggle all LEDs
+		second_counter=second_counter+0.5;
+	}
+	
+} 
