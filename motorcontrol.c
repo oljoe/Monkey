@@ -22,21 +22,40 @@
 #define MSR 1
 #define MSL 2
 
-void open_gripper(unsigned char motor){
-	//when microswitch==1, do 0,5 second more of opening
+int previous_angle_L1 = 0, previous_angle_L2 = 0, previous_angle_R1 = 0, previous_angle_R2 = 0;
+unsigned char motor_speed_R2=0, motor_speed_L2=0, motor_speed_R1=0, motor_speed_L1=0;
+
+void move_elbow(unsigned char stage, unsigned char motor, unsigned int angle){
+	if (stage ==0){
+		if (motor == R2){
+			motor_speed_R2 = 255;
+			previous_angle_R2=potentiometer_angle(P3);
+			if (previous_angle_R2<angle) motor_contoller(R2,motor_speed_R2,CW);
+			if (previous_angle_R2>angle) motor_contoller(R2,motor_speed_R2,CCW);
+		if (previous_angle_R2==angle) motor_contoller(R2,0,BRAKE);}
+		if (motor == L2){
+			motor_speed_L2 = 255;
+			previous_angle_L2=potentiometer_angle(P4);
+			if (previous_angle_L2<angle) motor_contoller(L2,motor_speed_L2,CW);
+			if (previous_angle_L2>angle) motor_contoller(L2,motor_speed_L2,CCW);
+		if (previous_angle_L2==angle) motor_contoller(L2,0,BRAKE);}
+	}
 }
 
-void close_gripper(unsigned char motor){
-	//open at max speed until microswitch signal == 1 on & optocoupler == 0 then rotate 0.1 ms
-
+void move_base(unsigned char stage, unsigned char motor, unsigned int angle){
+	if (stage ==0){
+		if (motor == R1){
+			motor_speed_R1 = 255;
+			previous_angle_R1=potentiometer_angle(P1);
+			if (previous_angle_R1<angle) motor_contoller(R1,motor_speed_R2,CW);
+			if (previous_angle_R1>angle) motor_contoller(R1,motor_speed_R2,CCW);
+		if (previous_angle_R1==angle) motor_contoller(R1,0,BRAKE);}
+		if (motor == L1){
+			motor_speed_L1 = 255;
+			previous_angle_L1=potentiometer_angle(P2);
+			if (previous_angle_L1<angle) motor_contoller(L1,motor_speed_L1,CW);
+			if (previous_angle_L1>angle) motor_contoller(L1,motor_speed_L1,CCW);
+		if (previous_angle_L1==angle) motor_contoller(L1,0,BRAKE);}
+	}
 }
-
-void move_elbow(unsigned char motor, unsigned int angle){
-	// if CW angle <0, then |angle|, but CCW
-	// if desired angle > angle, then CCW
-}
-
-void move_base(unsigned char motor, unsigned int angle){
 	
-	
-}
