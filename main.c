@@ -14,7 +14,6 @@
 #include <util/delay.h>
 #include <stdbool.h>
 #include "sensorscontrol.h"
-#include "motorcontrol.h"
 
 #define STAGE_AMOUNT 6
 #define CW 1
@@ -39,9 +38,14 @@ void open_gripper(unsigned char motor);
 void close_gripper(unsigned char motor);
 void set_pins(void);
 void init_interrupt(); //function initiates 
+void move_elbow(unsigned char stage, unsigned char motor, unsigned int angle);
+void move_base(unsigned char stage, unsigned char motor, unsigned int angle);
 volatile int miliseconds=0;
 unsigned char stage=0;
-unsigned int passed_time=0;
+unsigned int passed_timeL=0;
+unsigned int passed_timeR=0;
+int previous_angle_L1 = 0, previous_angle_L2 = 0, previous_angle_R1 = 0, previous_angle_R2 = 0;
+unsigned char motor_speed_R2=0, motor_speed_L2=0, motor_speed_R1=0, motor_speed_L1=0;
 
 
 int main(void)
@@ -69,16 +73,14 @@ int main(void)
 	//------------------------BEGIN MOTION-------------------------------//
 	
 	while(1){
-		
-		for(unsigned char stage=0;stage<STAGE_AMOUNT;stage++){
-			if(micro_switch(MSL)==0 || (passed_time-miliseconds<100)) close_gripper(L3);
-			if(micro_switch(MSR)==0 || (passed_time-miliseconds<100)) close_gripper(R3);
+			if((micro_switch(MSL)==0) || ((passed_timeL-miliseconds<100) && (stage==0))) close_gripper(L3);
+			if((micro_switch(MSR)==0) || ((passed_timeL-miliseconds<100) && (stage==0))) close_gripper(R3);
 			move_elbow(stage,R2, 20);
 			move_elbow(stage,L2, 20);
 			move_base(stage,R1, 20);
 			move_base(stage,L1, 20);
+			if(previous_angle_L1==20 && previous_angle_L2==20 && previous_angle_R1==20 && previous_angle_R2==20) stage++;
 		}
-	}
 }
 
 void set_pins(){
@@ -109,24 +111,24 @@ void open_gripper(unsigned char motor){
 	if (motor == R3) 
 	{
 		motor_contoller(R3, 255, CCW);
-		if(micro_switch(MSR)==1) passed_time=miliseconds;
-		if(micro_switch(MSR)==1 && passed_time>0)
+		if(micro_switch(MSR)==1) passed_timeR=miliseconds;
+		if(micro_switch(MSR)==1 && passed_timeR>0)
 		{
-			if(miliseconds-passed_time>100){
+			if(miliseconds-passed_timeR>100){
 				 motor_contoller (R3, 0, BRAKE); //wait for 0.1sec more after microswitch signal
-				 passed_time=0;
+				 passed_timeR=0;
 			}
 		}
 	}
 	if (motor == L3)
 	{
-		if(micro_switch(MSL)==0 || (passed_time-miliseconds<100)){
+		if(micro_switch(MSL)==0 || (passed_timeL-miliseconds<100)){
 			motor_contoller(L3, 255, CCW);
-			if(micro_switch(MSL)==1) passed_time=miliseconds;
-			if(micro_switch(MSL)==1 && passed_time>0){
-				if(miliseconds-passed_time>100){
+			if(micro_switch(MSL)==1) passed_timeL=miliseconds;
+			if(micro_switch(MSL)==1 && passed_timeL>0){
+				if(miliseconds-passed_timeL>100){
 					 motor_contoller (L3, 0, BRAKE); //wait for 0.1sec more after microswitch signal
-					 passed_time=0;
+					 passed_timeL=0;
 				}	
 			}
 		}
@@ -134,23 +136,67 @@ void open_gripper(unsigned char motor){
 }
 
 void close_gripper(unsigned char motor){
-	if (motor == R3 )
+	//if right gripper requested
+	if (motor == R3)
+	if((opto_coupler(OR)==1) && (micro_switch(MSR)==1))
 	{
-		while (opto_coupler(OR)==1) {};
-		{
-			motor_contoller( R3, 255, CW);
-		}
-		passed_time=miliseconds;
-		
-	}if (micro_switch(MSR)==0) motor_contoller (R3, 0, BRAKE);
-
-	if (motor == L3 )
-	while (opto_coupler(OL)==1) {};
+		motor_contoller(R3, 255, CW);
+	} 
+	if((opto_coupler(OR)==0) && (micro_switch(MSR)==0) && (passed_timeR==0)) passed_timeR=miliseconds; 
+	if ((micro_switch(MSR)==0) && (miliseconds-passed_timeR==100)) //after microswitch changes signal, wait 0.1 before braking.
 	{
-		motor_contoller( L3, 255, CW);
-	} // Wait 0.5ms
-	if (micro_switch(MSL)==0) motor_contoller (L3, 0, BRAKE);
+		motor_contoller (L3, 0, BRAKE); 
+		passed_timeR=0;
+	}
+	//if left gripper requested
+	if (motor == L3)
+	if((opto_coupler(OL)==1) && (micro_switch(MSL)==1))
+	{
+		motor_contoller(L3, 255, CW);
+	} 
+	if((opto_coupler(OL)==0) && (micro_switch(MSL)==0) && (passed_timeL==0)) passed_timeL=miliseconds; 
+	if ((micro_switch(MSL)==0) && (miliseconds-passed_timeL==100)) //after microswitch changes signal, wait 0.1 before braking.
+	{
+		motor_contoller (L3, 0, BRAKE); 
+		passed_timeL=0;
+	}
 }
+
+void move_elbow(unsigned char stage, unsigned char motor, unsigned int angle){
+	if (stage ==0){
+		if (motor == R2){
+			motor_speed_R2 = 255;
+			previous_angle_R2=potentiometer_angle(P3);
+			if (previous_angle_R2<angle) motor_contoller(R2,motor_speed_R2,CW);
+			if (previous_angle_R2>angle) motor_contoller(R2,motor_speed_R2,CCW);
+		if (previous_angle_R2==angle) motor_contoller(R2,0,BRAKE);}
+		if (motor == L2){
+			motor_speed_L2 = 255;
+			previous_angle_L2=potentiometer_angle(P4);
+			if (previous_angle_L2<angle) motor_contoller(L2,motor_speed_L2,CW);
+			if (previous_angle_L2>angle) motor_contoller(L2,motor_speed_L2,CCW);
+		if (previous_angle_L2==angle) motor_contoller(L2,0,BRAKE);}
+	}
+}
+
+void move_base(unsigned char stage, unsigned char motor, unsigned int angle){
+	if (stage ==0){
+		if (motor == R1){
+			motor_speed_R1 = 255;
+			previous_angle_R1=potentiometer_angle(P1);
+			if (previous_angle_R1<angle) motor_contoller(R1,motor_speed_R2,CW);
+			if (previous_angle_R1>angle) motor_contoller(R1,motor_speed_R2,CCW);
+		if (previous_angle_R1==angle) motor_contoller(R1,0,BRAKE);}
+		if (motor == L1){
+			motor_speed_L1 = 255;
+			previous_angle_L1=potentiometer_angle(P2);
+			if (previous_angle_L1<angle) motor_contoller(L1,motor_speed_L1,CW);
+			if (previous_angle_L1>angle) motor_contoller(L1,motor_speed_L1,CCW);
+		if (previous_angle_L1==angle) motor_contoller(L1,0,BRAKE);}
+	}
+}
+
+
 
 //INTERRUPT ROUTINE for the COUNTER
 ISR (TIMER0_COMPA_vect) {
