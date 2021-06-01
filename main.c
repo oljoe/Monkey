@@ -1,114 +1,84 @@
+/*
+ * Main_code.c
+ *
+ * Created: 31/05/2021 23.24.01
+ * Author : Grp7_EMB_TEAM
+ */ 
+
 #define F_CPU 16000000UL
-#define STAGEAMOUNT 32 //amount of stages. For now this number is arbitrary
-#include <stdio.h>
 #include <avr/io.h>
-#include <util/delay.h>
 #include <avr/interrupt.h>
+#include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
-#include "usart.h"
-#include "motorboard.h"
-#include "potentiometer.h"
+#include <util/delay.h>
+#include <stdbool.h>
+#include "sensorscontrol.h"
 
-#define BAUDRATE 57600 //baudrate number is also arbitrary for now
-#define BAUD_PRESCALER ((F_CPU/(BAUDRATE*16UL))-1)
+#define CW 1
+#define CCW 2
+#define BRAKE 3
+#define R1 1
+#define R2 2
+#define R3 3
+#define L1 4
+#define L2 5
+#define L3 6
+#define P1 0
+#define P2 1
+#define P3 2
+#define P4 3
+#define OR 1
+#define OL 2
+#define MSR 1
+#define MSL 2
 
-typedef struct
-{
-	uint8_t R1; //right arm bottom actuator
-	uint8_t R2; //right arm middle actuator
-	uint8_t R3; //right arm top actuator
-	uint8_t L1; //left arm ...
-	uint8_t L2;
-	uint8_t L3;
-} pwm;
-
-//function prototypes
-void motor_set (unsigned char); //sets motor pwm.
-uint8_t optocoupler_check (void); //checks if optocoupler signal is 1 or 0. (might need to be an interrupt instead of function).
-char value_check (unsigned char); //PID controller. checks angle, velocity, etc. If needed values are achieved, the device starts grabbing bar.
+void set_pins(void);
 void init_interrupt(); //function initiates 
-
-pwm motor; //this variable is used for setting pwm values for each of the 6 motors on the machine
-uint8_t angle; //this variable is used by accelerometer to check whether the needed angle is reached
 volatile int ms=0;
 float second_counter=0;
 
-
 int main(void)
 {
-	uart_init();
-	io_redirect();
-	//PWM pins set as outputs
-	DDRB |= (1 << DDB1) | (1 << DDB2) | (1 << DDB3);
-	DDRD |= (1 << DDD3) | (1 << DDD5) | (1 << DDD6);
-
-	// Latch, Clock and Data pins for 74HC595 set as outputs
-	DDRD |= (1 << DDD2) | (1 << DDD4) | (1 << DDD7);
-	
-	char finish=1; //when finish =0, program stops.
-	char stage_number=1; //which stage device is currently on. Used to determine what pwm speed to set.
-	
-	// COUNTER (1 ms)
+	set_pins();
+//	uart_init();   // open the communication to the micro controller
+//	i2c_init();    // initialize the i2c communication.
+//	io_redirect(); // redirect the input/output to the computer.
+	// COUNTER
 	TCCR0A|=(1<<WGM01);	 // set timer to ctc
 	OCR0A=0xF9;			 // set value
 	TIMSK0|=(1<<OCIE0A); // enable interrupt on compare a for timer 0
 	sei();
 	
-/*		loop for bars
-		1. Set pwm signal and the signals duration
-		2. When expected values (angle, velocity, acceleration) are correct, stage_number++
-		3. Loop starts again but with stage_number=+1, therefore next stage begins.
-		4. Second stage, gripper motors activate. Machine grips bar.
-		6. When Opto-coupler and switch =1, gripper caught bar. Stage complete
-		7. Begin next stage
-*/		
-	while(finish){
-		do 
-		{
-				motor_set(stage_number);
-				while(value_check(stage_number)==0){ //either this or time-based command.
-					//wait to achieve the needed values
-					
-				stage_number++;
-			}
-		} while (stage_number<STAGEAMOUNT); // robot reached the last ladder and finished all stages
-			finish=0;
-		}
+    while (1) 
+    {
+		//start-up -> claws are open
+		motor_direction(R3, BRAKE);
+		motor_direction(L3, BRAKE);
 		
-	return (0);
+		/*M5 M6 -> 255
+		Clockwise
+		function if microswitch = 0 then BRAKE and set pwm signal to zero
+		
+		M4 needs CCW 20 degrees from 180 degrees 2670 mV to get the right degree
+		M3 needs CW 20 degrees from 180 degrees (5V = 300 degrees) -> 3333 mV 
+		
+		M2 needs CW 20 degrees 
+		M1 needs CCW 20 degrees 
+		//create a loop where motor 5 and 6 is going clockwise fullspeed until the microswitch does not close down
+		
+		// stage 1
+		// open the claws until the microswitch does not open - M6
+		// start motor 2 4 to grab the bar #3 and motor 1 3 to get enough velocity */
+    }
 }
 
-
-	
-void motor_set (unsigned char input_number){
-
-	switch (input_number)
-	{
-		case 1:{
-			motor.L1=1; //requested velocity for each motor in set stage is input into these values
-			motor.L2=2;
-			motor.L3=2;
-			motor.R1=2;
-			motor.R2=2;
-			motor.R3=2;
-			
-			angle=43; //requested angle for machine in set stage is set
-			
-		}
-		case 2:{}
-	// and so on for all needed stages.
-	
-	//Using a PWM command, input the chosen motorL1,L2,... values
-	
-	}
-		
-
-}
-
-char value_check (unsigned char input_number){
-	char done=0;
-	
-	 return done;
+void set_pins(){
+		//Setting up PINS to operate
+		DDRC &= (0 << DDC0) & (0 << DDC1) & (0 << DDC2) & (0 << DDC3); // A0...A3 set pin as inputs
+		DDRB &= (0 << DDB0) & (0 << DDB4) & (0 << DDB5); DDRD &= (0 << DDD0); // Set D8 D12 D13 D0 as inputs
+		PORTB |= (1 << PORTB0) | (1 << PORTB5) | (1 << PORTB5); PORTD |= (1 << PORTD0); // Enable pull-ups for D8 D12 D13 D0 pins
+		DDRD |= (1 << DDD2) | (1 << DDD3) | (1 << DDD4) | (1 << DDD5) | (1 << DDD6) | (1 << DDD7); DDRB |= (1 << DDB1) | (1 << DDB2) | (1 << DDB3); // setting D2 D3 D4 D5 D6 D7 D9 D10 D11 as outputs
 }
 
 void init_interrupt(void){
@@ -126,12 +96,9 @@ void init_interrupt(void){
 	TCCR0B |= (1 << CS01) | (1 << CS00); //set prescaler to 64 and start
 }
 
-//INTERRUPT ROUTINE for the COUNTER (1ms)
+//INTERRUPT ROUTINE for the COUNTER
 ISR (TIMER0_COMPA_vect) {
 	ms++;
-	if (ms == 500){
-		PORTD ^=0xF0; //toggle all LEDs
-		second_counter=second_counter+0.5;
-	}
+	if (ms == 500) second_counter=second_counter+0.5;
 	
-} 
+}
