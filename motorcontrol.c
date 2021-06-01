@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <avr/io.h>
 #include <stdbool.h>
+#include "sensorscontrol.h"
 
 #define CW 1
 #define CCW 2
@@ -22,17 +23,20 @@
 #define MSL 2
 
 void open_gripper(unsigned char motor){
-	
+	//when microswitch==1, do 0,5 second more of opening
 }
 
 void close_gripper(unsigned char motor){
-	
+	//open at max speed until microswitch signal == 1 on & optocoupler == 0 then rotate 0.1 ms
+
 }
 
 void move_elbow(unsigned char motor, unsigned int angle){
-	
+	// if CW angle <0, then |angle|, but CCW
+	// if desired angle > angle, then CCW
 }
 
 void move_base(unsigned char motor, unsigned int angle){
+	
 	
 }

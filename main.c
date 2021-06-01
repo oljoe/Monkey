@@ -41,14 +41,11 @@ float second_counter=0;
 int main(void)
 {
 	set_pins();
-//	uart_init();   // open the communication to the micro controller
-//	i2c_init();    // initialize the i2c communication.
-//	io_redirect(); // redirect the input/output to the computer.
+	uart_init();   // open the communication to the micro controller
+	i2c_init();    // initialize the i2c communication.
+	io_redirect(); // redirect the input/output to the computer.
 	// COUNTER
-	TCCR0A|=(1<<WGM01);	 // set timer to ctc
-	OCR0A=0xF9;			 // set value
-	TIMSK0|=(1<<OCIE0A); // enable interrupt on compare a for timer 0
-	sei();
+	init_interrupt();
 	
     while (1) 
     {
@@ -99,6 +96,6 @@ void init_interrupt(void){
 //INTERRUPT ROUTINE for the COUNTER
 ISR (TIMER0_COMPA_vect) {
 	ms++;
-	if (ms == 500) second_counter=second_counter+0.5;
+	if (ms == 50) second_counter=second_counter+0.05;
 	
 }
