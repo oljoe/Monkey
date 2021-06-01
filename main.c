@@ -142,7 +142,7 @@ void close_gripper(unsigned char motor){
 	{
 		motor_contoller(R3, 255, CW);
 	} 
-	if((opto_coupler(OR)==0) && (micro_switch(MSR)==0) && (passed_timeR==0)) passed_timeR=miliseconds; 
+	if ((opto_coupler(OR)==0) && (micro_switch(MSR)==0) && (passed_timeR==0)) passed_timeR=miliseconds; 
 	if ((micro_switch(MSR)==0) && (miliseconds-passed_timeR==100)) //after microswitch changes signal, wait 0.1 before braking.
 	{
 		motor_contoller (L3, 0, BRAKE); 
