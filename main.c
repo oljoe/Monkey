@@ -25,27 +25,30 @@
 #define L1 4 //left base motor
 #define L2 5 //left elbow motor
 #define L3 6 //left gripper
-#define P1 7 //potentiometer 1
-#define P2 8 //potentiometer 2
-#define P3 9 //potentiometer 3
-#define P4 10 //potentiometer 4
+#define PR1 7 //potentiometer 1
+#define PL1 8 //potentiometer 2
+#define PR2 9 //potentiometer 3
+#define PL2 10 //potentiometer 4
 #define OR 11 //right optocoupler
 #define OL 12 //left optocoupler
 #define MSR 13 // right microswitch
 #define MSL 14 // left microswitch
 
-void open_gripper(unsigned char motor);
-void close_gripper(unsigned char motor);
-void set_pins(void);
-void init_interrupt(); //function initiates 
+void open_gripper(unsigned char motor); //opens grippers until fully opened
+void close_gripper(unsigned char motor); //closes grippers until fully closed
+void set_pins(void); //initiates pins
+void init_interrupt(); //function initiates interrupts
 void move_elbow(unsigned char stage, unsigned char motor, unsigned int angle);
 void move_base(unsigned char stage, unsigned char motor, unsigned int angle);
-volatile int miliseconds=0;
-unsigned char stage=0;
-unsigned int passed_timeL=0;
-unsigned int passed_timeR=0;
+volatile int miliseconds=0; // global time variable used for interrupts
+unsigned char stage=0; //used to tell which motor movement should be initiated
+unsigned int passed_timeL=0;//used for closing/opening grippers.
+unsigned int passed_timeR=0;//used for closing/opening grippers.
+unsigned int passed_time_global=0;
 int previous_angle_L1 = 0, previous_angle_L2 = 0, previous_angle_R1 = 0, previous_angle_R2 = 0;
 unsigned char motor_speed_R2=0, motor_speed_L2=0, motor_speed_R1=0, motor_speed_L1=0;
+unsigned char direction=1; //0 is ccw 1 is cw
+unsigned char speedL; speedR;
 
 
 int main(void)
@@ -73,14 +76,41 @@ int main(void)
 	//------------------------BEGIN MOTION-------------------------------//
 	
 	while(1){
-			if((micro_switch(MSL)==0) || ((passed_timeL-miliseconds<100) && (stage==0))) close_gripper(L3);
-			if((micro_switch(MSR)==0) || ((passed_timeL-miliseconds<100) && (stage==0))) close_gripper(R3);
-			move_elbow(stage,R2, 20);
-			move_elbow(stage,L2, 20);
-			move_base(stage,R1, 20);
-			move_base(stage,L1, 20);
-			if(previous_angle_L1==20 && previous_angle_L2==20 && previous_angle_R1==20 && previous_angle_R2==20) stage++;
+		//set up begining position
+		passed_timeL=0;
+		passed_timeR=0;
+		if(stage==0){
+				if((micro_switch(MSL)==0) || ((passed_timeL-miliseconds<100) && (stage==0))) close_gripper(L3);
+				if((micro_switch(MSR)==0) || ((passed_timeL-miliseconds<100) && (stage==0))) close_gripper(R3);
+				move_elbow(stage,R2, 20);
+				move_elbow(stage,L2, 20);
+				move_base(stage,R1, 20);
+				move_base(stage,L1, 20);
+				if(previous_angle_L1==20 && previous_angle_L2==20 && previous_angle_R1==20 && previous_angle_R2==20) stage++;
 		}
+			//begining position set up
+			//begin motion for first bar
+			passed_timeL=0;
+			passed_timeR=0;
+			open_gripper(L3);
+			if(stage==1){
+				motor_contoller(R2,speedR=255,direction);
+				if(potentiometer_angle(PL1) > 14217*passed_timeR^6 - 51593passed_timeR^5 + 72740*passed_timeR^4 - 49510*passed_timeR^3 + 16025*passed_timeR^2 - 1855,3*passed_timeR + 17,444) speedR+=2;
+				if(potentiometer_angle(PL1) < 14217*passed_timeR^6 - 51593passed_timeR^5 + 72740*passed_timeR^4 - 49510*passed_timeR^3 + 16025*passed_timeR^2 - 1855,3*passed_timeR + 17,444) speedR-=2;
+				motor_contoller(L2,speedL=255,direction);
+				if(potentiometer_angle(PL2) > 345638*passed_timeL^6 - 726311*passed_timeL^5 + 548525*passed_timeL^4 - 175232*passed_timeL^3 + 20312*passed_timeL^2 - 418,47*passed_timeL + 10,32) speedL+=2;
+				if(potentiometer_angle(PL2) < 345638*passed_timeL^6 - 726311*passed_timeL^5 + 548525*passed_timeL^4 - 175232*passed_timeL^3 + 20312*passed_timeL^2 - 418,47*passed_timeL + 10,32) speedL-=2;
+				if(passed_timeL==0.6 && angle > 35 && angle < 40){
+					close_gripper(L3);
+					stage++;
+			}
+			passed_timeL=0;
+			passed_timeR=0;
+			if(stage==5){
+				
+			}
+		}
+	
 }
 
 void set_pins(){
@@ -201,5 +231,9 @@ void move_base(unsigned char stage, unsigned char motor, unsigned int angle){
 //INTERRUPT ROUTINE for the COUNTER
 ISR (TIMER0_COMPA_vect) {
 	miliseconds++;
-	
+	//determine which direction to move in for the arms
+	if(14217*passed_timeR^6 - 51593passed_timeR^5 + 72740*passed_timeR^4 - 49510*passed_timeR^3 + 16025*passed_timeR^2 - 1855,3*passed_timeR + 17,444 > 0) direction=1;
+	if(14217*passed_timeR^6 - 51593passed_timeR^5 + 72740*passed_timeR^4 - 49510*passed_timeR^3 + 16025*passed_timeR^2 - 1855,3*passed_timeR + 17,444 < 0) direction=0;
+	if(345638*passed_timeL^6 - 726311*passed_timeL^5 + 548525*passed_timeL^4 - 175232*passed_timeL^3 + 20312*passed_timeL^2 - 418,47*passed_timeL + 10,32 > 0) direction=1;
+	if(345638*passed_timeL^6 - 726311*passed_timeL^5 + 548525*passed_timeL^4 - 175232*passed_timeL^3 + 20312*passed_timeL^2 - 418,47*passed_timeL + 10,32 < 0) direction=0;
 }
