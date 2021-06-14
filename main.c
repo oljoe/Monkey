@@ -25,14 +25,14 @@
 #define L1 4 //left base motor
 #define L2 5 //left elbow motor
 #define L3 6 //left gripper
-#define P1 0 //potentiometer 1
-#define P2 1 //potentiometer 2
-#define P3 2 //potentiometer 3
-#define P4 3 //potentiometer 4
-#define OR 1 //right optocoupler
-#define OL 2 //left optocoupler
-#define MSR 1 // right microswitch
-#define MSL 2 // left microswitch
+#define P1 7 //potentiometer 1
+#define P2 8 //potentiometer 2
+#define P3 9 //potentiometer 3
+#define P4 10 //potentiometer 4
+#define OR 11 //right optocoupler
+#define OL 12 //left optocoupler
+#define MSR 13 // right microswitch
+#define MSL 14 // left microswitch
 
 void open_gripper(unsigned char motor);
 void close_gripper(unsigned char motor);
