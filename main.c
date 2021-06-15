@@ -16,7 +16,6 @@
 #include <math.h>
 #include "sensorscontrol.h"
 
-#define STAGE_AMOUNT 6
 #define CW 1
 #define CCW 2
 #define BRAKE 3
@@ -48,7 +47,7 @@ unsigned int passed_timeR=0;//used for closing/opening grippers.
 unsigned int relative_time=0; //used for the relative time passed since a stage has started
 int previous_angle_L1 = 0, previous_angle_L2 = 0, previous_angle_R1 = 0, previous_angle_R2 = 0; //used to determine angles between the joints
 unsigned char motor_speed_R2=0, motor_speed_L2=0, motor_speed_R1=0, motor_speed_L1=0; //
-volatile unsigned char direction=1; //0 is ccw 1 is cw
+unsigned char direction=1; //0 is ccw 1 is cw
 
 
 int main(void)
@@ -93,7 +92,6 @@ int main(void)
 		
 			//begining position set up
 			//begin motion for first bar
-			open_gripper(L3);
 			if(stage==1){
 				motor_contoller(R2,motor_speed_L2=255,direction); //set velocity and direction of right actuator
 				if(potentiometer_angle(PL1) > (14217*pow(relative_time,6) - 51593*pow(relative_time,5) + 72740*pow(relative_time,4) - 49510*pow(relative_time,3) + 16025*pow(relative_time,2) - 1855.3*relative_time + 17.444)) motor_speed_R2+=2;
@@ -106,7 +104,7 @@ int main(void)
 				if((14217*pow(relative_time,6) - 51593*pow(relative_time,5 )+ 72740*pow(relative_time,4) - 49510*pow(relative_time,3) + 16025*pow(relative_time,2) - 1855.3*relative_time + 17.444) < 0) direction=0;
 				if((345638*pow(relative_time,6) - 726311*pow(relative_time,5) + 548525*pow(relative_time,4) - 175232*pow(relative_time,3) + 20312*pow(relative_time,2) - 418.47*relative_time + 10.32) > 0) direction=1;
 				if((345638*pow(relative_time,6) - 726311*pow(relative_time,5) + 548525*pow(relative_time,4) - 175232*pow(relative_time,3) + 20312*pow(relative_time,2) - 418.47*relative_time + 10.32) < 0) direction=0;
-				if(passed_timeL==0.8 && (potentiometer_angle(PL1) > 38) && (potentiometer_angle(PL1) < 41)){
+				if(passed_timeL==0.8 && (potentiometer_angle(PL1) > 38) && (potentiometer_angle(PL1) < 41) && (potentiometer_angle(PR1)>46) && (potentiometer_angle(PR1) < 47))){
 					close_gripper(L3);
 					stage++; //change to next stage
 					relative_time=miliseconds; //set relative time
