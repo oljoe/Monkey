@@ -79,13 +79,18 @@ int main(void)
 		//set up begining position
 		if(stage==0){
 				if((micro_switch(MSL)==0) || ((passed_timeL-miliseconds<100) && (stage==0))) close_gripper(L3);
-				if((micro_switch(MSR)==0) || ((passed_timeL-miliseconds<100) && (stage==0))) close_gripper(R3);
+				if((micro_switch(MSR)==0) || ((passed_timeR-miliseconds<100) && (stage==0))) close_gripper(R3);
 				move_elbow(stage,R2, 20);
 				move_elbow(stage,L2, 20);
 				move_base(stage,R1, 20);
 				move_base(stage,L1, 20);
-				if(previous_angle_L1==20 && previous_angle_L2==20 && previous_angle_R1==20 && previous_angle_R2==20) stage++;
+				if(previous_angle_L1==20 && previous_angle_L2==20 && previous_angle_R1==20 && previous_angle_R2==20) 
+				{
+					stage++; //change to next stage
+					relative_time=miliseconds; //set relative time
+				}
 		}
+		
 			//begining position set up
 			//begin motion for first bar
 			open_gripper(L3);
@@ -96,12 +101,17 @@ int main(void)
 				motor_contoller(L2,motor_speed_R2=255,direction); //set velocity and direction of left actuator
 				if(potentiometer_angle(PL2) > (345638*pow(relative_time,6) - 726311*pow(relative_time,5) + 548525*pow(relative_time,4) - 175232*pow(relative_time,3) + 20312*pow(relative_time,2) - 418.47*relative_time + 10.32)) motor_speed_L2+=2;
 				if(potentiometer_angle(PL2) < (345638*pow(relative_time,6) - 726311*pow(relative_time,5) + 548525*pow(relative_time,4) - 175232*pow(relative_time,3) + 20312*pow(relative_time,2) - 418.47*relative_time + 10.32)) motor_speed_L2-=2;
+				//check which direction the motors should be moving. If the equation is negative - ccw, if positive - cw.
+				if((14217*pow(relative_time,6) - 51593*pow(relative_time,5) + 72740*pow(relative_time,4) - 49510*pow(relative_time,3) + 16025*pow(relative_time,2) - 1855.3*relative_time + 17.444) > 0) direction=1;
+				if((14217*pow(relative_time,6) - 51593*pow(relative_time,5 )+ 72740*pow(relative_time,4) - 49510*pow(relative_time,3) + 16025*pow(relative_time,2) - 1855.3*relative_time + 17.444) < 0) direction=0;
+				if((345638*pow(relative_time,6) - 726311*pow(relative_time,5) + 548525*pow(relative_time,4) - 175232*pow(relative_time,3) + 20312*pow(relative_time,2) - 418.47*relative_time + 10.32) > 0) direction=1;
+				if((345638*pow(relative_time,6) - 726311*pow(relative_time,5) + 548525*pow(relative_time,4) - 175232*pow(relative_time,3) + 20312*pow(relative_time,2) - 418.47*relative_time + 10.32) < 0) direction=0;
 				if(passed_timeL==0.6 && (potentiometer_angle(PL1) > 35) && (potentiometer_angle(PL1) < 40)){
 					close_gripper(L3);
-					stage++;
+					stage++; //change to next stage
+					relative_time=miliseconds; //set relative time
 			}
-
-			if(stage==5){
+			if(stage==2){
 				
 			}
 		}
@@ -226,11 +236,4 @@ void move_base(unsigned char stage, unsigned char motor, unsigned int angle){
 //INTERRUPT ROUTINE for the COUNTER
 ISR (TIMER0_COMPA_vect) {
 	miliseconds++;
-	//determine which direction to move in for the arms
-	if(stage==1){
-		if((14217*pow(relative_time,6) - 51593*pow(relative_time,5) + 72740*pow(relative_time,4) - 49510*pow(relative_time,3) + 16025*pow(relative_time,2) - 1855.3*relative_time + 17.444) > 0) direction=1;
-		if((14217*pow(relative_time,6) - 51593*pow(relative_time,5 )+ 72740*pow(relative_time,4) - 49510*pow(relative_time,3) + 16025*pow(relative_time,2) - 1855.3*relative_time + 17.444) < 0) direction=0;
-		if((345638*pow(relative_time,6) - 726311*pow(relative_time,5) + 548525*pow(relative_time,4) - 175232*pow(relative_time,3) + 20312*pow(relative_time,2) - 418.47*relative_time + 10.32) > 0) direction=1;
-		if((345638*pow(relative_time,6) - 726311*pow(relative_time,5) + 548525*pow(relative_time,4) - 175232*pow(relative_time,3) + 20312*pow(relative_time,2) - 418.47*relative_time + 10.32) < 0) direction=0;
-	}
 }
